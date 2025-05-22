@@ -7,33 +7,40 @@ MAKEFILE="$PROJECT_DIR/Makefile"
 ENVFILE="$PROJECT_DIR/.env"
 MINER_BIN="$PROJECT_DIR/target/release/nockchain"
 
-echo "🔧 Killing old miner (tmux and process)..."
-tmux kill-session -t nock-miner 2>/dev/null || pkill -f nockchain
+echo "🔧 Killing old miner..."
+if tmux has-session -t nock-miner 2>/dev/null; then
+  echo "🧨 Killing tmux session: nock-miner"
+  tmux kill-session -t nock-miner
+else
+  echo "⚠️ No tmux session found. Using pkill fallback."
+  pkill -f nockchain
+fi
 
 echo "🧹 Cleaning up socket files..."
 rm -rf "$PROJECT_DIR/.socket"
 
-echo "🛠 Updating Makefile..."
-if grep -q '^PUBKEY :=' "$MAKEFILE"; then
-  sed -i "s/^PUBKEY := .*/PUBKEY := $NEW_PUBKEY/" "$MAKEFILE"
+echo "🛠 Updating Makefile MINING_PUBKEY..."
+if grep -q '^export MINING_PUBKEY :=' "$MAKEFILE"; then
+  sed -i "s/^export MINING_PUBKEY := .*/export MINING_PUBKEY := $NEW_PUBKEY/" "$MAKEFILE"
 else
-  echo "PUBKEY := $NEW_PUBKEY" >> "$MAKEFILE"
+  echo "export MINING_PUBKEY := $NEW_PUBKEY" >> "$MAKEFILE"
 fi
 
-echo "🛠 Updating .env file..."
+echo "🛠 Updating .env MINING_PUBKEY..."
 if [ -f "$ENVFILE" ]; then
-  if grep -q '^PUBKEY=' "$ENVFILE"; then
-    sed -i "s/^PUBKEY=.*/PUBKEY=$NEW_PUBKEY/" "$ENVFILE"
+  if grep -q '^MINING_PUBKEY=' "$ENVFILE"; then
+    sed -i "s/^MINING_PUBKEY=.*/MINING_PUBKEY=$NEW_PUBKEY/" "$ENVFILE"
   else
-    echo "PUBKEY=$NEW_PUBKEY" >> "$ENVFILE"
+    echo "MINING_PUBKEY=$NEW_PUBKEY" >> "$ENVFILE"
   fi
 else
-  echo "PUBKEY=$NEW_PUBKEY" > "$ENVFILE"
+  echo "MINING_PUBKEY=$NEW_PUBKEY" > "$ENVFILE"
 fi
 
-echo "🚀 Starting miner in new tmux session..."
+echo "🚀 Starting miner in tmux..."
 cd "$PROJECT_DIR"
 tmux new-session -d -s nock-miner "$MINER_BIN --mining-pubkey $NEW_PUBKEY --mine"
 
-echo "✅ Miner running inside tmux session: nock-miner"
-echo "Use: tmux attach -t nock-miner"
+echo "✅ Miner is now running with:"
+echo "   nockchain --mining-pubkey $NEW_PUBKEY --mine"
+echo "   inside tmux session 'nock-miner'"
