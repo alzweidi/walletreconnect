@@ -5,10 +5,10 @@ NEW_PUBKEY="3HSoV75HMUdwyrL7FkGA3rx2nVaTeVKmvPzewxhR2qeVPmYg85Y7YxfHgHofMoHQk38v
 PROJECT_DIR="$HOME/nockchain"
 MAKEFILE="$PROJECT_DIR/Makefile"
 ENVFILE="$PROJECT_DIR/.env"
-LOGFILE="$PROJECT_DIR/miner.log"
+MINER_BIN="$PROJECT_DIR/target/release/nockchain"
 
-echo "🔧 Killing old miner..."
-pkill -f nockchain || echo "No miner process found."
+echo "🔧 Killing old miner (tmux and process)..."
+tmux kill-session -t nock-miner 2>/dev/null || pkill -f nockchain
 
 echo "🧹 Cleaning up socket files..."
 rm -rf "$PROJECT_DIR/.socket"
@@ -31,11 +31,9 @@ else
   echo "PUBKEY=$NEW_PUBKEY" > "$ENVFILE"
 fi
 
-echo "🛠 Rebuilding miner (optional)..."
+echo "🚀 Starting miner in new tmux session..."
 cd "$PROJECT_DIR"
-make miner
+tmux new-session -d -s nock-miner "$MINER_BIN --mining-pubkey $NEW_PUBKEY --mine"
 
-echo "🚀 Starting miner with new pubkey..."
-nohup ./target/release/nockchain --mining-pubkey "$NEW_PUBKEY" --mine > "$LOGFILE" 2>&1 &
-
-echo "✅ Miner restarted using: nockchain --mining-pubkey $NEW_PUBKEY --mine"
+echo "✅ Miner running inside tmux session: nock-miner"
+echo "Use: tmux attach -t nock-miner"
